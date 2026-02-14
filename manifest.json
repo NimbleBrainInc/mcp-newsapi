@@ -1,0 +1,59 @@
+{
+  "manifest_version": "0.4",
+  "name": "@nimblebraininc/newsapi",
+  "version": "0.1.0",
+  "description": "Search news articles and top headlines using the NewsAPI",
+  "author": {
+    "name": "NimbleBrain Inc",
+    "email": "hello@nimblebrain.ai"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NimbleBrainInc/mcp-newsapi"
+  },
+  "user_config": {
+    "api_key": {
+      "type": "string",
+      "title": "NewsAPI API Key",
+      "description": "Get your API key from https://newsapi.org/register",
+      "sensitive": true,
+      "required": true
+    }
+  },
+  "server": {
+    "type": "python",
+    "entry_point": "mcp_newsapi.server",
+    "mcp_config": {
+      "command": "python",
+      "args": [
+        "-m",
+        "mcp_newsapi.server"
+      ],
+      "env": {
+        "NEWS_API_KEY": "${user_config.api_key}"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "get_top_headlines",
+      "description": "Get top news headlines by country and category"
+    },
+    {
+      "name": "search_news",
+      "description": "Search news articles from the past 30 days"
+    }
+  ],
+  "_meta": {
+    "org.mpaktrust": {
+      "mtf_version": "0.1",
+      "permissions": {
+        "filesystem": "none",
+        "network": "outbound",
+        "environment": "read",
+        "subprocess": "none",
+        "native": "none"
+      }
+    }
+  }
+}

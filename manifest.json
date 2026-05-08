@@ -1,12 +1,13 @@
 {
   "manifest_version": "0.4",
   "name": "@nimblebraininc/newsapi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Search news articles and top headlines using the NewsAPI",
   "author": {
     "name": "NimbleBrain Inc",
     "email": "hello@nimblebrain.ai"
   },
+  "icon": "https://static.nimblebrain.ai/icons/newsapi.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/NimbleBrainInc/mcp-newsapi"

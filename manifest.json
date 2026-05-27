@@ -1,7 +1,8 @@
 {
   "manifest_version": "0.4",
   "name": "@nimblebraininc/newsapi",
-  "version": "0.1.2",
+  "display_name": "NewsAPI",
+  "version": "0.1.3",
   "description": "Search news articles and top headlines using the NewsAPI",
   "author": {
     "name": "NimbleBrain Inc",

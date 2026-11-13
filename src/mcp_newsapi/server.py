@@ -6,13 +6,17 @@ import sys
 from typing import Literal
 
 from dotenv import load_dotenv
-from fastmcp import Context, FastMCP
+from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from .api_client import APIError, NewsAPIClient
 from .api_models import SearchNewsResponse, TopHeadlinesResponse
 
+# Diagnostics go to stderr (stdout carries JSON-RPC), never to the client: MCP's logging
+# capability is deprecated as of the 2026-07-28 protocol (SEP-2577). A failure the caller
+# must see is raised as a ToolError.
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -33,7 +37,8 @@ def get_client() -> NewsAPIClient:
     if _client is None:
         api_key = os.environ.get("NEWS_API_KEY")
         if not api_key:
-            raise ValueError(
+            logger.error("NEWS_API_KEY is not set")
+            raise ToolError(
                 "NEWS_API_KEY is required. Get your API key from https://newsapi.org/register"
             )
         _client = NewsAPIClient(api_key=api_key)
@@ -55,7 +60,6 @@ async def get_top_headlines(
     ]
     | None = None,
     page_size: int = 10,
-    ctx: Context | None = None,
 ) -> TopHeadlinesResponse:
     """Get top news headlines by country and category.
 
@@ -64,20 +68,18 @@ async def get_top_headlines(
         country: 2-letter ISO 3166-1 country code (default: "us").
         category: News category: "business", "entertainment", "general", "health", "science", "sports", or "technology".
         page_size: Number of results to return (default: 10, max: 100).
-        ctx: MCP context.
 
     Returns:
         Top headlines with article titles, descriptions, URLs, and source info.
     """
     client = get_client()
 
-    if ctx:
-        label = f"country={country}"
-        if query:
-            label += f", query={query[:50]}"
-        if category:
-            label += f", category={category}"
-        await ctx.info(f"Fetching top headlines: {label}")
+    label = f"country={country}"
+    if query:
+        label += f", query={query[:50]}"
+    if category:
+        label += f", category={category}"
+    logger.info("Fetching top headlines: %s", label)
 
     try:
         return await client.get_top_headlines(
@@ -87,9 +89,8 @@ async def get_top_headlines(
             page_size=page_size,
         )
     except APIError as e:
-        if ctx:
-            await ctx.error(f"NewsAPI error: {e.message}")
-        raise
+        logger.warning("NewsAPI error: %s", e.message)
+        raise ToolError(f"NewsAPI error: {e.message}") from e
 
 
 @mcp.tool()
@@ -102,7 +103,6 @@ async def search_news(
     language: str = "en",
     sort_by: Literal["relevancy", "popularity", "publishedAt"] = "publishedAt",
     page_size: int = 10,
-    ctx: Context | None = None,
 ) -> SearchNewsResponse:
     """Search news articles from the past 30 days.
 
@@ -117,15 +117,13 @@ async def search_news(
         language: 2-letter ISO 639-1 language code (default: "en").
         sort_by: Sort order: "relevancy", "popularity", or "publishedAt" (default: "publishedAt").
         page_size: Number of results to return (default: 10, max: 100).
-        ctx: MCP context.
 
     Returns:
         News articles with titles, descriptions, URLs, source info, and content previews.
     """
     client = get_client()
 
-    if ctx:
-        await ctx.info(f"Searching news for: {query[:80]}...")
+    logger.info("Searching news for: %s", query[:80])
 
     try:
         return await client.search_news(
@@ -139,9 +137,8 @@ async def search_news(
             page_size=page_size,
         )
     except APIError as e:
-        if ctx:
-            await ctx.error(f"NewsAPI error: {e.message}")
-        raise
+        logger.warning("NewsAPI error: %s", e.message)
+        raise ToolError(f"NewsAPI error: {e.message}") from e
 
 
 # ASGI entrypoint (nimbletools-core container deployment)

@@ -249,3 +249,33 @@ def test_search_news_response_model() -> None:
     assert response.query == "test"
     assert response.articles == []
     assert response.total_results == 0
+
+
+@pytest.mark.asyncio
+async def test_api_error_is_a_tool_error() -> None:
+    """An upstream API failure reaches the caller as a tool error, not a client log message."""
+    from fastmcp.exceptions import ToolError
+
+    from mcp_newsapi.api_client import APIError
+
+    with patch("mcp_newsapi.server.get_client") as mock_get_client:
+        mock_client = AsyncMock()
+        mock_client.search_news.side_effect = APIError(429, "rate limited")
+        mock_get_client.return_value = mock_client
+
+        async with Client(mcp) as client:
+            with pytest.raises(ToolError, match="NewsAPI error: rate limited"):
+                await client.call_tool("search_news", {"query": "ai"})
+
+
+@pytest.mark.asyncio
+async def test_missing_api_key_is_a_tool_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastmcp.exceptions import ToolError
+
+    import mcp_newsapi.server as server
+
+    monkeypatch.delenv("NEWS_API_KEY", raising=False)
+    monkeypatch.setattr(server, "_client", None)
+    async with Client(mcp) as client:
+        with pytest.raises(ToolError, match="NEWS_API_KEY is required"):
+            await client.call_tool("search_news", {"query": "ai"})

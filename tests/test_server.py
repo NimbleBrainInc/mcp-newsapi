@@ -252,7 +252,16 @@ def test_search_news_response_model() -> None:
 
 
 @pytest.mark.asyncio
-async def test_api_error_is_a_tool_error() -> None:
+@pytest.mark.parametrize(
+    ("tool", "client_method", "arguments"),
+    [
+        ("search_news", "search_news", {"query": "ai"}),
+        ("get_top_headlines", "get_top_headlines", {}),
+    ],
+)
+async def test_api_error_is_a_tool_error(
+    tool: str, client_method: str, arguments: dict[str, object]
+) -> None:
     """An upstream API failure reaches the caller as a tool error, not a client log message."""
     from fastmcp.exceptions import ToolError
 
@@ -260,12 +269,12 @@ async def test_api_error_is_a_tool_error() -> None:
 
     with patch("mcp_newsapi.server.get_client") as mock_get_client:
         mock_client = AsyncMock()
-        mock_client.search_news.side_effect = APIError(429, "rate limited")
+        getattr(mock_client, client_method).side_effect = APIError(429, "rate limited")
         mock_get_client.return_value = mock_client
 
         async with Client(mcp) as client:
             with pytest.raises(ToolError, match="NewsAPI error: rate limited"):
-                await client.call_tool("search_news", {"query": "ai"})
+                await client.call_tool(tool, arguments)
 
 
 @pytest.mark.asyncio
